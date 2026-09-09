@@ -1,0 +1,16 @@
+target/
+logs/
+*.log
+db.properties
+.env
+*.session.sql
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/*
+!.vscode/settings.json
+*.class
+.DS_Store
+Thumbs.db

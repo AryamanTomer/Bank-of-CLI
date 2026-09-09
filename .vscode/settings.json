@@ -1,0 +1,46 @@
+{
+  "java.jdt.ls.java.home": "C:\\Program Files\\Java\\jdk-21",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "C:\\Program Files\\Java\\jdk-21",
+      "default": true
+    }
+  ],
+  "terminal.integrated.env.windows": {
+    "JAVA_HOME": "C:\\Program Files\\Java\\jdk-21"
+  },
+  "sqltools.connections": [
+    {
+      "name": "bank_cli",
+      "driver": "PostgreSQL",
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 5432,
+      "database": "bank_cli",
+      "username": "postgres",
+      "askForPassword": true
+    },
+    {
+      "name": "bank_cli_test",
+      "driver": "PostgreSQL",
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 5432,
+      "database": "bank_cli_test",
+      "username": "postgres",
+      "askForPassword": true
+    },
+    {
+      "name": "postgres (admin)",
+      "driver": "PostgreSQL",
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 5432,
+      "database": "postgres",
+      "username": "postgres",
+      "askForPassword": true
+    }
+  ],
+  "sqltools.useNodeRuntime": true
+}
