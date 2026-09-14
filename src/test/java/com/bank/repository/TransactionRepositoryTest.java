@@ -4,7 +4,6 @@ import com.bank.model.Account;
 import com.bank.model.Transaction;
 import com.bank.model.TransactionType;
 import com.bank.util.ConnectionFactory;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -27,8 +26,6 @@ class TransactionRepositoryTest {
              Statement statement = connection.createStatement()) {
             statement.execute("DELETE FROM transactions");
             statement.execute("DELETE FROM accounts");
-        } catch (Exception e) {
-            Assumptions.assumeTrue(false, "bank_cli_test is not available: " + e.getMessage());
         }
     }
 

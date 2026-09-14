@@ -16,30 +16,22 @@
       "driver": "PostgreSQL",
       "previewLimit": 50,
       "server": "localhost",
-      "port": 5432,
-      "database": "bank_cli",
+      "port": 55432,
+      "database": "postgres",
       "username": "postgres",
-      "askForPassword": true
+      "password": "",
+      "askForPassword": false
     },
     {
       "name": "bank_cli_test",
       "driver": "PostgreSQL",
       "previewLimit": 50,
       "server": "localhost",
-      "port": 5432,
-      "database": "bank_cli_test",
-      "username": "postgres",
-      "askForPassword": true
-    },
-    {
-      "name": "postgres (admin)",
-      "driver": "PostgreSQL",
-      "previewLimit": 50,
-      "server": "localhost",
-      "port": 5432,
+      "port": 55433,
       "database": "postgres",
       "username": "postgres",
-      "askForPassword": true
+      "password": "",
+      "askForPassword": false
     }
   ],
   "sqltools.useNodeRuntime": true

@@ -6,6 +6,7 @@ import com.bank.exception.InsufficientFundsException;
 import com.bank.model.Account;
 import com.bank.model.TransactionType;
 import com.bank.util.ConnectionFactory;
+import com.bank.util.Money;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -25,7 +26,7 @@ public class AccountRepository {
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, account.getAccountId());
             statement.setString(2, account.getPinHash());
-            statement.setBigDecimal(3, account.getBalance());
+            statement.setBigDecimal(3, Money.scale(account.getBalance()));
             statement.setTimestamp(4, Timestamp.from(account.getCreatedAt()));
             statement.executeUpdate();
         } catch (SQLException e) {
@@ -124,14 +125,13 @@ public class AccountRepository {
             try {
                 String first = fromAccountId.compareTo(toAccountId) < 0 ? fromAccountId : toAccountId;
                 String second = fromAccountId.compareTo(toAccountId) < 0 ? toAccountId : fromAccountId;
-                lockBalance(connection, first);
-                lockBalance(connection, second);
-
-                BigDecimal fromBalance = lockBalance(connection, fromAccountId);
+                BigDecimal firstBalance = lockBalance(connection, first);
+                BigDecimal secondBalance = lockBalance(connection, second);
+                BigDecimal fromBalance = fromAccountId.equals(first) ? firstBalance : secondBalance;
                 if (fromBalance.compareTo(amount) < 0) {
                     throw new InsufficientFundsException();
                 }
-                BigDecimal toBalance = lockBalance(connection, toAccountId);
+                BigDecimal toBalance = toAccountId.equals(first) ? firstBalance : secondBalance;
 
                 updateBalance(connection, fromAccountId, fromBalance.subtract(amount));
                 updateBalance(connection, toAccountId, toBalance.add(amount));
@@ -174,7 +174,7 @@ public class AccountRepository {
                 if (!resultSet.next()) {
                     throw new AccountNotFoundException(accountId);
                 }
-                return resultSet.getBigDecimal("balance");
+                return Money.scale(resultSet.getBigDecimal("balance"));
             }
         }
     }
@@ -182,7 +182,7 @@ public class AccountRepository {
     private void updateBalance(Connection connection, String accountId, BigDecimal newBalance) throws SQLException {
         String sql = "UPDATE accounts SET balance = ? WHERE account_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setBigDecimal(1, newBalance);
+            statement.setBigDecimal(1, Money.scale(newBalance));
             statement.setString(2, accountId);
             statement.executeUpdate();
         }
@@ -203,7 +203,7 @@ public class AccountRepository {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, accountId);
             statement.setString(2, type.name());
-            statement.setBigDecimal(3, amount);
+            statement.setBigDecimal(3, Money.scale(amount));
             statement.setString(4, relatedAccountId);
             statement.setString(5, description);
             statement.executeUpdate();

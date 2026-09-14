@@ -1,77 +1,101 @@
 package com.bank.util;
 
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Properties;
+import java.sql.Statement;
 
 public final class ConnectionFactory {
-    private static final Properties LOCAL = loadLocalProperties();
+    private static final Object LOCK = new Object();
+    private static EmbeddedPostgres postgres;
+    private static boolean schemaReady;
 
     private ConnectionFactory() {
     }
 
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(url(), username(), password());
+        ensureStarted();
+        Connection connection = postgres.getPostgresDatabase().getConnection();
+        ensureSchema(connection);
+        return connection;
     }
 
-    public static boolean isConfigured() {
-        return notBlank(username());
-    }
-
-    static String url() {
-        if (Boolean.parseBoolean(System.getProperty("bank.test.db", "false"))) {
-            return firstNonBlank(envOrLocal("TEST_DB_URL"), "jdbc:postgresql://localhost:5432/bank_cli_test");
+    private static void ensureStarted() throws SQLException {
+        if (postgres != null) {
+            return;
         }
-        return firstNonBlank(envOrLocal("DB_URL"), "jdbc:postgresql://localhost:5432/bank_cli");
-    }
-
-    private static String username() {
-        return firstNonBlank(envOrLocal("DB_USERNAME"), envOrLocal("DB_USER"), "postgres");
-    }
-
-    private static String password() {
-        String value = envOrLocal("DB_PASSWORD");
-        return value == null ? "" : value;
-    }
-
-    private static String envOrLocal(String key) {
-        String env = System.getenv(key);
-        if (notBlank(env)) {
-            return env;
-        }
-        String local = LOCAL.getProperty(key);
-        return notBlank(local) ? local : null;
-    }
-
-    private static Properties loadLocalProperties() {
-        Properties properties = new Properties();
-        Path path = Path.of("db.properties");
-        if (!Files.exists(path)) {
-            return properties;
-        }
-        try (InputStream in = Files.newInputStream(path)) {
-            properties.load(in);
-        } catch (IOException ignored) {
-            // Environment variables still apply.
-        }
-        return properties;
-    }
-
-    private static String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (notBlank(value)) {
-                return value;
+        synchronized (LOCK) {
+            if (postgres != null) {
+                return;
+            }
+            try {
+                postgres = EmbeddedPostgres.builder()
+                        .setDataDirectory(dataDirectory().toFile())
+                        .setCleanDataDirectory(false)
+                        .setPort(port())
+                        .setOverrideWorkingDirectory(Path.of("data", "pg-bin").toFile())
+                        .start();
+            } catch (IOException e) {
+                throw new SQLException("Failed to start PostgreSQL", e);
             }
         }
-        return "";
     }
 
-    private static boolean notBlank(String value) {
-        return value != null && !value.isBlank();
+    private static Path dataDirectory() {
+        return Path.of("data", isTest() ? "pg-test" : "pg");
+    }
+
+    private static int port() {
+        return isTest() ? 55433 : 55432;
+    }
+
+    private static boolean isTest() {
+        return Boolean.parseBoolean(System.getProperty("bank.test.db", "false"));
+    }
+
+    private static void ensureSchema(Connection connection) throws SQLException {
+        if (schemaReady) {
+            return;
+        }
+        synchronized (LOCK) {
+            if (schemaReady) {
+                return;
+            }
+            String schema = loadSchema();
+            try (Statement statement = connection.createStatement()) {
+                for (String raw : schema.split(";")) {
+                    String sql = raw.strip();
+                    if (!sql.isEmpty()) {
+                        statement.execute(sql);
+                    }
+                }
+            }
+            schemaReady = true;
+        }
+    }
+
+    private static String loadSchema() throws SQLException {
+        Path localSchema = Path.of("schema.sql");
+        if (Files.exists(localSchema)) {
+            try {
+                return Files.readString(localSchema, StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                throw new SQLException("Failed to read schema.sql", e);
+            }
+        }
+        try (InputStream in = ConnectionFactory.class.getResourceAsStream("/schema.sql")) {
+            if (in == null) {
+                throw new SQLException("schema.sql was not found in the project folder or classpath");
+            }
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new SQLException("Failed to read schema.sql", e);
+        }
     }
 }

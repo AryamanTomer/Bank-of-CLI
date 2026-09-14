@@ -100,8 +100,6 @@ public class AccountService {
     public void deposit(String accountId, BigDecimal amount) {
         BigDecimal validAmount = requirePositiveAmount(amount);
         try {
-            accountRepository.findById(accountId)
-                    .orElseThrow(() -> new AccountNotFoundException(accountId));
             accountRepository.deposit(accountId, validAmount);
             AppLogger.info("User " + accountId + " successfully deposited " + validAmount);
         } catch (DataAccessException e) {
@@ -113,14 +111,11 @@ public class AccountService {
     public void withdraw(String accountId, BigDecimal amount) {
         BigDecimal validAmount = requirePositiveAmount(amount);
         try {
-            Account account = accountRepository.findById(accountId)
-                    .orElseThrow(() -> new AccountNotFoundException(accountId));
-            if (account.getBalance().compareTo(validAmount) < 0) {
-                AppLogger.error("Withdrawal rejected for " + accountId + ": insufficient funds");
-                throw new InsufficientFundsException();
-            }
             accountRepository.withdraw(accountId, validAmount);
             AppLogger.info("User " + accountId + " successfully withdrew " + validAmount);
+        } catch (InsufficientFundsException e) {
+            AppLogger.error("Withdrawal rejected for " + accountId + ": insufficient funds");
+            throw e;
         } catch (DataAccessException e) {
             AppLogger.error("Database connection lost", e);
             throw new ServiceUnavailableException(e);
@@ -137,16 +132,11 @@ public class AccountService {
             throw new ValidationException("You cannot transfer money to the same account.");
         }
         try {
-            Account source = accountRepository.findById(fromAccountId)
-                    .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
-            accountRepository.findById(destination)
-                    .orElseThrow(() -> new AccountNotFoundException(destination));
-            if (source.getBalance().compareTo(validAmount) < 0) {
-                AppLogger.error("Transfer rejected for " + fromAccountId + ": insufficient funds");
-                throw new InsufficientFundsException();
-            }
             accountRepository.transfer(fromAccountId, destination, validAmount);
             AppLogger.info("User " + fromAccountId + " successfully transferred " + validAmount + " to " + destination);
+        } catch (InsufficientFundsException e) {
+            AppLogger.error("Transfer rejected for " + fromAccountId + ": insufficient funds");
+            throw e;
         } catch (DataAccessException e) {
             AppLogger.error("Database connection lost", e);
             throw new ServiceUnavailableException(e);

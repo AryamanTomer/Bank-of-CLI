@@ -5,7 +5,7 @@ import com.bank.exception.DataAccessException;
 import com.bank.exception.InsufficientFundsException;
 import com.bank.model.Account;
 import com.bank.util.ConnectionFactory;
-import org.junit.jupiter.api.Assumptions;
+import com.bank.util.Money;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -28,8 +28,6 @@ class AccountRepositoryTest {
              Statement statement = connection.createStatement()) {
             statement.execute("DELETE FROM transactions");
             statement.execute("DELETE FROM accounts");
-        } catch (Exception e) {
-            Assumptions.assumeTrue(false, "bank_cli_test is not available: " + e.getMessage());
         }
     }
 
@@ -88,7 +86,7 @@ class AccountRepositoryTest {
              )) {
             assertTrue(resultSet.next());
             assertEquals("DEPOSIT", resultSet.getString("type"));
-            assertEquals(new BigDecimal("25.00"), resultSet.getBigDecimal("amount"));
+            assertEquals(new BigDecimal("25.00"), Money.scale(resultSet.getBigDecimal("amount")));
         }
     }
 
@@ -112,7 +110,7 @@ class AccountRepositoryTest {
              )) {
             assertTrue(resultSet.next());
             assertEquals("WITHDRAWAL", resultSet.getString("type"));
-            assertEquals(new BigDecimal("15.00"), resultSet.getBigDecimal("amount"));
+            assertEquals(new BigDecimal("15.00"), Money.scale(resultSet.getBigDecimal("amount")));
         }
     }
 

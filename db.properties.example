@@ -1,4 +1,0 @@
-DB_URL=jdbc:postgresql://localhost:5432/bank_cli
-TEST_DB_URL=jdbc:postgresql://localhost:5432/bank_cli_test
-DB_USERNAME=postgres
-DB_PASSWORD=

@@ -16,7 +16,7 @@ public final class Application {
 
     public static void main(String[] args) {
         try (Connection ignored = ConnectionFactory.getConnection()) {
-            // Confirm bank_cli is reachable before showing the menu.
+            // Confirm PostgreSQL is ready before showing the menu.
         } catch (Exception e) {
             AppLogger.error("Database connection lost", e);
             System.out.println("Service temporarily unavailable. Please try again later.");

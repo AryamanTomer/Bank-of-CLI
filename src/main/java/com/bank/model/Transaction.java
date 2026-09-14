@@ -1,5 +1,7 @@
 package com.bank.model;
 
+import com.bank.util.Money;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
@@ -26,7 +28,7 @@ public final class Transaction {
         this.id = id;
         this.accountId = Objects.requireNonNull(accountId, "accountId");
         this.type = Objects.requireNonNull(type, "type");
-        this.amount = Objects.requireNonNull(amount, "amount");
+        this.amount = Money.scale(Objects.requireNonNull(amount, "amount"));
         this.relatedAccountId = relatedAccountId;
         this.description = description;
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");

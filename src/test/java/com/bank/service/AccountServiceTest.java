@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -102,9 +103,6 @@ class AccountServiceTest {
 
     @Test
     void deposit_creditsAccountWhenAmountIsValid() {
-        when(accountRepository.findById(ACCOUNT_ID))
-                .thenReturn(Optional.of(new Account(ACCOUNT_ID, "hash", BigDecimal.ZERO, Instant.now())));
-
         accountService.deposit(ACCOUNT_ID, new BigDecimal("40.00"));
 
         verify(accountRepository).deposit(ACCOUNT_ID, new BigDecimal("40.00"));
@@ -118,9 +116,6 @@ class AccountServiceTest {
 
     @Test
     void withdraw_debitsAccountWhenFundsAreAvailable() {
-        when(accountRepository.findById(ACCOUNT_ID))
-                .thenReturn(Optional.of(new Account(ACCOUNT_ID, "hash", new BigDecimal("80.00"), Instant.now())));
-
         accountService.withdraw(ACCOUNT_ID, new BigDecimal("30.00"));
 
         verify(accountRepository).withdraw(ACCOUNT_ID, new BigDecimal("30.00"));
@@ -128,21 +123,15 @@ class AccountServiceTest {
 
     @Test
     void withdraw_rejectsWhenFundsAreInsufficient() {
-        when(accountRepository.findById(ACCOUNT_ID))
-                .thenReturn(Optional.of(new Account(ACCOUNT_ID, "hash", new BigDecimal("10.00"), Instant.now())));
+        doThrow(new InsufficientFundsException())
+                .when(accountRepository).withdraw(ACCOUNT_ID, new BigDecimal("10.01"));
 
         assertThrows(InsufficientFundsException.class,
                 () -> accountService.withdraw(ACCOUNT_ID, new BigDecimal("10.01")));
-        verify(accountRepository, never()).withdraw(any(), any());
     }
 
     @Test
     void transfer_movesFundsBetweenDistinctAccounts() {
-        when(accountRepository.findById(ACCOUNT_ID))
-                .thenReturn(Optional.of(new Account(ACCOUNT_ID, "hash", new BigDecimal("200.00"), Instant.now())));
-        when(accountRepository.findById("10000002"))
-                .thenReturn(Optional.of(new Account("10000002", "hash", new BigDecimal("5.00"), Instant.now())));
-
         accountService.transfer(ACCOUNT_ID, "10000002", new BigDecimal("50.00"));
 
         verify(accountRepository).transfer(ACCOUNT_ID, "10000002", new BigDecimal("50.00"));

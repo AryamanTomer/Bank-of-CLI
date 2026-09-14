@@ -1,8 +1,10 @@
 package com.bank.api;
 
 import com.bank.exception.BankingException;
+import com.bank.exception.DataAccessException;
 import com.bank.model.Transaction;
 import com.bank.service.AccountService;
+import com.bank.util.AppLogger;
 import com.bank.util.Money;
 
 import java.math.BigDecimal;
@@ -58,8 +60,8 @@ public class BankCli {
             System.out.println("Registration successful.");
             System.out.println("Your Account ID is: " + account.getAccountId());
             System.out.println("Keep your Account ID and PIN safe — you will need both to log in.");
-        } catch (BankingException e) {
-            System.out.println(e.getUserMessage());
+        } catch (DataAccessException | BankingException e) {
+            showFailure(e);
         }
     }
 
@@ -70,8 +72,8 @@ public class BankCli {
             accountService.login(accountId, pin);
             System.out.println("Login successful. Welcome.");
             runSession(accountId.trim());
-        } catch (BankingException e) {
-            System.out.println(e.getUserMessage());
+        } catch (DataAccessException | BankingException e) {
+            showFailure(e);
         }
     }
 
@@ -99,8 +101,8 @@ public class BankCli {
                     case "6" -> inSession = false;
                     default -> System.out.println("Please choose a number from 1 to 6.");
                 }
-            } catch (BankingException e) {
-                System.out.println(e.getUserMessage());
+            } catch (DataAccessException | BankingException e) {
+                showFailure(e);
             }
         }
         System.out.println("You have been logged out.");
@@ -163,6 +165,15 @@ public class BankCli {
             System.out.println("Please enter a valid amount, for example 25.00.");
             return null;
         }
+    }
+
+    private void showFailure(RuntimeException error) {
+        if (error instanceof DataAccessException) {
+            AppLogger.error("Database connection lost", error);
+            System.out.println("Service temporarily unavailable. Please try again later.");
+            return;
+        }
+        System.out.println(((BankingException) error).getUserMessage());
     }
 
     private String prompt(String label) {
