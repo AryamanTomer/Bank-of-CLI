@@ -1,47 +1,89 @@
-# Project Specification: Bank of CLI
+# Bank of CLI
 
-## 1. Overview
-Welcome to the **Bank of CLI** project! In this project, you will build a functional banking application that runs entirely within the terminal. Your goal is to move from a simple user interface down to a persistent database, applying what you've learned about Java, SQL, and Agile development.
+Terminal banking app with a layered Java architecture and PostgreSQL over JDBC.
 
-## 2. Your Mission (MVP Features)
-You are responsible for delivering a "Core Ledger" that supports the following operations:
+Users can register, log in with an Account ID and PIN, check a balance, deposit, withdraw, transfer, and view recent transaction history. Successful actions are written as `INFO` to `logs/bank-of-cli.log`. Failures such as a bad PIN or a lost database connection are written as `ERROR`. The CLI shows a short message, never a stack trace.
 
-*   **Secure Access:** Users must be able to register and log in using a unique `Account ID` and `PIN`.
-*   **Balance Management:** Users can check their current account balance at any time.
-*   **The Transaction Engine:**
-    *   `Deposit`: Add funds to an account.
-    *   `Withdraw`: Remove funds (the system must prevent overdrawing!).
-    *   `Transfer`: Move money securely between two different accounts.
-*   **Audit Trail:** Users can view their recent transaction history.
-*   **System Logging:** The application must maintain a log file to track activity. You are required to use:
-    *   `INFO`: To record successful actions (e.g., "User successfully logged in").
-    *   `ERROR`: To record failures or security risks (e.g., "Incorrect PIN entered" or "Database connection lost").
+## Tech stack
 
-## 3. Architecture & Technical Requirements
-To build a scalable and maintainable application, you must follow a **Layered Architecture**. Do not skip layers; each has a specific job:
+- Java 21
+- Maven
+- PostgreSQL
+- JDBC (`DriverManager` + `PreparedStatement`)
+- JUnit 5
 
-1.  **API Layer (The Interface):** This is what the user sees. It handles all terminal inputs, menu navigation, and printing messages. This layer *only* talks to the Service Layer.
-2.  **Business Layer (The Brains):** This is where the banking rules live (e.g., "Can this user afford this withdrawal?"). It receives calls from the API and calls the Repository Layer
-3.  **Repository Layer (The Vault):** This layer handles all communication with the SQL database. It converts SQL rows into Java objects and vice versa. It *only* receives calls from the Business Layer.
+## Architecture
 
-### The Tech Stack
-*   **Language:** Java
-*   **Build Tool:** Maven
-*   **Database:** Postgres
-*   **Testing:** JUnit 5
-*   **Version Control:** Git & GitHub
+The layout follows the week 4 `cleancodeWithJDBC` example: API → service interface/impl → DAO → domain.
 
-## 4. Quality Standards: The "2-Test Rule"
-We don't just want code that works; we want code that is *proven* to work. For **every** single method you write in the Service and Repository layers, you must provide at least two JUnit 5 tests:
-1.  **The Positive Test:** Prove the method works when everything goes right (e.g., a successful deposit).
-2.  **The Negative Test:** Prove the method handles errors correctly (e.g., attempting to withdraw more money than is available should be rejected gracefully).
+| Layer | Package | Role |
+| --- | --- | --- |
+| API | `com.bank.api` | Terminal menus and messages. Talks only to `AccountService`. |
+| Service | `com.bank.service` | Banking rules (PIN checks, overdraft, same-account transfer). |
+| Persistence | `com.bank.persistence` | JDBC, SQL, row mapping. Talks only to Postgres. |
+| Domain | `com.bank.domain` | `Account` and `Transaction` objects. |
 
-## 5. Professional Implementation Guidelines
-As you build, keep these "Gold Standards" in mind:
+`Main` wires the layers the same way as the example:
 
-*   **Atomicity (All or Nothing):** When performing a `Transfer`, the deduction from one account and the addition to another must happen as one single unit. If one part fails, the whole operation must fail so that money never "vanishes."
-*   **Smart Error Handling:** 
-    *   **User-Friendly Messages:** If a user makes a mistake (like an incorrect PIN), show them a clear, helpful message.
-    *   **Security First:** If the database crashes, do **not** show the user a scary technical stack trace. Instead, log the technical error and show the user a polite "Service Unavailable" type message.
+```java
+AccountDAO accountDAO = new AccountDAOImpl();
+TransactionDAO transactionDAO = new TransactionDAOImpl();
+AccountService service = new AccountServiceImpl(accountDAO, transactionDAO);
+new BankCli(service, scanner).start();
+```
 
-**Good luck, and happy coding!**
+Transfers run in one database transaction. If either side fails, both balances roll back.
+
+## Setup
+
+1. Install **JDK 21** and **PostgreSQL**.
+2. Create two databases (default user `postgres`):
+
+```sql
+CREATE DATABASE bank_cli;
+CREATE DATABASE bank_cli_test;
+```
+
+3. Tables are created automatically on startup (`CREATE TABLE IF NOT EXISTS`). You can also apply `schema.sql` yourself.
+4. JDBC settings live in `src/main/resources/db.properties`:
+
+```properties
+DB_URL=jdbc:postgresql://localhost:5432/bank_cli
+TEST_DB_URL=jdbc:postgresql://localhost:5432/bank_cli_test
+DB_USER=postgres
+DB_PASSWORD=
+```
+
+Copy `db.properties.example` if you need a local override. Do not commit a real password.
+
+## Run
+
+From the project directory:
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-21"
+$env:Path = "$env:JAVA_HOME\bin;" + $env:Path
+mvn -q exec:java
+```
+
+## Test
+
+Service methods are tested with Mockito. DAO methods hit `bank_cli_test`. Every public service and DAO method has a positive test and a negative test.
+
+```powershell
+mvn test
+```
+
+## Project layout
+
+```
+src/main/java/com/bank/
+  api/           Main, BankCli
+  service/       AccountService, AccountServiceImpl
+  persistence/   ConnectionFactory, AccountDAO, TransactionDAO
+  domain/        Account, Transaction
+  exception/     user-facing and data-access errors
+  util/          PIN hashing, logging, money
+src/main/resources/db.properties
+schema.sql
+```

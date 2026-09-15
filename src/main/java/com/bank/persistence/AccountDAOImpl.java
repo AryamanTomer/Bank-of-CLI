@@ -1,11 +1,10 @@
-package com.bank.repository;
+package com.bank.persistence;
 
+import com.bank.domain.Account;
+import com.bank.domain.TransactionType;
 import com.bank.exception.AccountNotFoundException;
 import com.bank.exception.DataAccessException;
 import com.bank.exception.InsufficientFundsException;
-import com.bank.model.Account;
-import com.bank.model.TransactionType;
-import com.bank.util.ConnectionFactory;
 import com.bank.util.Money;
 
 import java.math.BigDecimal;
@@ -16,64 +15,97 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Optional;
 
-public class AccountRepository {
+public class AccountDAOImpl implements AccountDAO {
+    private static final String CREATE_ACCOUNTS_SQL = """
+            CREATE TABLE IF NOT EXISTS accounts (
+                account_id VARCHAR(16) PRIMARY KEY,
+                pin_hash VARCHAR(60) NOT NULL,
+                balance NUMERIC(15, 2) NOT NULL DEFAULT 0.00 CHECK (balance >= 0),
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """;
+    private static final String CREATE_TRANSACTIONS_SQL = """
+            CREATE TABLE IF NOT EXISTS transactions (
+                id BIGSERIAL PRIMARY KEY,
+                account_id VARCHAR(16) NOT NULL REFERENCES accounts(account_id),
+                type VARCHAR(20) NOT NULL,
+                amount NUMERIC(15, 2) NOT NULL CHECK (amount > 0),
+                related_account_id VARCHAR(16),
+                description VARCHAR(255),
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """;
+    private static final String CREATE_INDEX_SQL = """
+            CREATE INDEX IF NOT EXISTS idx_transactions_account_created
+            ON transactions (account_id, created_at DESC)
+            """;
+    private static final String INSERT_SQL = """
+            INSERT INTO accounts (account_id, pin_hash, balance, created_at)
+            VALUES (?, ?, ?, ?)
+            """;
+    private static final String EXISTS_SQL = "SELECT 1 FROM accounts WHERE account_id = ?";
+    private static final String FIND_BY_ID_SQL = """
+            SELECT account_id, pin_hash, balance, created_at
+            FROM accounts
+            WHERE account_id = ?
+            """;
+    private static final String LOCK_BALANCE_SQL = "SELECT balance FROM accounts WHERE account_id = ? FOR UPDATE";
+    private static final String UPDATE_BALANCE_SQL = "UPDATE accounts SET balance = ? WHERE account_id = ?";
+    private static final String INSERT_TRANSACTION_SQL = """
+            INSERT INTO transactions (account_id, type, amount, related_account_id, description)
+            VALUES (?, ?, ?, ?, ?)
+            """;
+
+    public AccountDAOImpl() {
+        initializeSchema();
+    }
+
+    @Override
     public void create(Account account) {
-        String sql = """
-                INSERT INTO accounts (account_id, pin_hash, balance, created_at)
-                VALUES (?, ?, ?, ?)
-                """;
-        try (Connection connection = ConnectionFactory.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection();
+             PreparedStatement statement = connection.prepareStatement(INSERT_SQL)) {
             statement.setString(1, account.getAccountId());
             statement.setString(2, account.getPinHash());
             statement.setBigDecimal(3, Money.scale(account.getBalance()));
             statement.setTimestamp(4, Timestamp.from(account.getCreatedAt()));
             statement.executeUpdate();
         } catch (SQLException e) {
-            throw new DataAccessException("Failed to create account", e);
+            throw databaseError("Could not create account", e);
         }
     }
 
+    @Override
     public boolean existsById(String accountId) {
-        String sql = "SELECT 1 FROM accounts WHERE account_id = ?";
-        try (Connection connection = ConnectionFactory.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection();
+             PreparedStatement statement = connection.prepareStatement(EXISTS_SQL)) {
             statement.setString(1, accountId);
             try (ResultSet resultSet = statement.executeQuery()) {
                 return resultSet.next();
             }
         } catch (SQLException e) {
-            throw new DataAccessException("Failed to check account existence", e);
+            throw databaseError("Could not check account existence", e);
         }
     }
 
+    @Override
     public Optional<Account> findById(String accountId) {
-        String sql = """
-                SELECT account_id, pin_hash, balance, created_at
-                FROM accounts
-                WHERE account_id = ?
-                """;
-        try (Connection connection = ConnectionFactory.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection();
+             PreparedStatement statement = connection.prepareStatement(FIND_BY_ID_SQL)) {
             statement.setString(1, accountId);
             try (ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) {
-                    return Optional.empty();
+                if (resultSet.next()) {
+                    return Optional.of(mapAccount(resultSet));
                 }
-                return Optional.of(new Account(
-                        resultSet.getString("account_id"),
-                        resultSet.getString("pin_hash"),
-                        resultSet.getBigDecimal("balance"),
-                        resultSet.getTimestamp("created_at").toInstant()
-                ));
+                return Optional.empty();
             }
         } catch (SQLException e) {
-            throw new DataAccessException("Failed to load account", e);
+            throw databaseError("Could not find account", e);
         }
     }
 
+    @Override
     public void deposit(String accountId, BigDecimal amount) {
-        try (Connection connection = ConnectionFactory.getConnection()) {
+        try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection()) {
             connection.setAutoCommit(false);
             try {
                 BigDecimal current = lockBalance(connection, accountId);
@@ -85,17 +117,18 @@ public class AccountRepository {
                 throw e;
             } catch (SQLException e) {
                 connection.rollback();
-                throw new DataAccessException("Failed to deposit", e);
+                throw databaseError("Could not deposit", e);
             } finally {
                 connection.setAutoCommit(true);
             }
         } catch (SQLException e) {
-            throw new DataAccessException("Failed to deposit", e);
+            throw databaseError("Could not deposit", e);
         }
     }
 
+    @Override
     public void withdraw(String accountId, BigDecimal amount) {
-        try (Connection connection = ConnectionFactory.getConnection()) {
+        try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection()) {
             connection.setAutoCommit(false);
             try {
                 BigDecimal current = lockBalance(connection, accountId);
@@ -110,17 +143,18 @@ public class AccountRepository {
                 throw e;
             } catch (SQLException e) {
                 connection.rollback();
-                throw new DataAccessException("Failed to withdraw", e);
+                throw databaseError("Could not withdraw", e);
             } finally {
                 connection.setAutoCommit(true);
             }
         } catch (SQLException e) {
-            throw new DataAccessException("Failed to withdraw", e);
+            throw databaseError("Could not withdraw", e);
         }
     }
 
+    @Override
     public void transfer(String fromAccountId, String toAccountId, BigDecimal amount) {
-        try (Connection connection = ConnectionFactory.getConnection()) {
+        try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection()) {
             connection.setAutoCommit(false);
             try {
                 String first = fromAccountId.compareTo(toAccountId) < 0 ? fromAccountId : toAccountId;
@@ -157,18 +191,39 @@ public class AccountRepository {
                 throw e;
             } catch (SQLException e) {
                 connection.rollback();
-                throw new DataAccessException("Failed to transfer", e);
+                throw databaseError("Could not transfer", e);
             } finally {
                 connection.setAutoCommit(true);
             }
         } catch (SQLException e) {
-            throw new DataAccessException("Failed to transfer", e);
+            throw databaseError("Could not transfer", e);
         }
     }
 
+    private void initializeSchema() {
+        try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection();
+             PreparedStatement accounts = connection.prepareStatement(CREATE_ACCOUNTS_SQL);
+             PreparedStatement transactions = connection.prepareStatement(CREATE_TRANSACTIONS_SQL);
+             PreparedStatement index = connection.prepareStatement(CREATE_INDEX_SQL)) {
+            accounts.executeUpdate();
+            transactions.executeUpdate();
+            index.executeUpdate();
+        } catch (SQLException e) {
+            throw databaseError("Could not initialize database schema", e);
+        }
+    }
+
+    private Account mapAccount(ResultSet resultSet) throws SQLException {
+        return new Account(
+                resultSet.getString("account_id"),
+                resultSet.getString("pin_hash"),
+                resultSet.getBigDecimal("balance"),
+                resultSet.getTimestamp("created_at").toInstant()
+        );
+    }
+
     private BigDecimal lockBalance(Connection connection, String accountId) throws SQLException {
-        String sql = "SELECT balance FROM accounts WHERE account_id = ? FOR UPDATE";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(LOCK_BALANCE_SQL)) {
             statement.setString(1, accountId);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
@@ -180,8 +235,7 @@ public class AccountRepository {
     }
 
     private void updateBalance(Connection connection, String accountId, BigDecimal newBalance) throws SQLException {
-        String sql = "UPDATE accounts SET balance = ? WHERE account_id = ?";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(UPDATE_BALANCE_SQL)) {
             statement.setBigDecimal(1, Money.scale(newBalance));
             statement.setString(2, accountId);
             statement.executeUpdate();
@@ -196,11 +250,7 @@ public class AccountRepository {
             String relatedAccountId,
             String description
     ) throws SQLException {
-        String sql = """
-                INSERT INTO transactions (account_id, type, amount, related_account_id, description)
-                VALUES (?, ?, ?, ?, ?)
-                """;
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(INSERT_TRANSACTION_SQL)) {
             statement.setString(1, accountId);
             statement.setString(2, type.name());
             statement.setBigDecimal(3, Money.scale(amount));
@@ -208,5 +258,9 @@ public class AccountRepository {
             statement.setString(5, description);
             statement.executeUpdate();
         }
+    }
+
+    private DataAccessException databaseError(String message, SQLException cause) {
+        return new DataAccessException(message, cause);
     }
 }

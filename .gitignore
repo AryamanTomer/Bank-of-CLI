@@ -1,9 +1,9 @@
 target/
 logs/
 *.log
-data/pg/
-data/pg-test/
-data/pg-bin/
+data/
+db.properties
+!db.properties.example
 .env
 *.session.sql
 .idea/

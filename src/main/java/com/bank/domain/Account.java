@@ -1,4 +1,4 @@
-package com.bank.model;
+package com.bank.domain;
 
 import com.bank.util.Money;
 
@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 
-public final class Account {
+public class Account {
     private final String accountId;
     private final String pinHash;
     private final BigDecimal balance;

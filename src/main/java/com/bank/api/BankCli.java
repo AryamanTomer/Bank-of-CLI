@@ -1,8 +1,8 @@
 package com.bank.api;
 
+import com.bank.domain.Transaction;
 import com.bank.exception.BankingException;
 import com.bank.exception.DataAccessException;
-import com.bank.model.Transaction;
 import com.bank.service.AccountService;
 import com.bank.util.AppLogger;
 import com.bank.util.Money;
@@ -60,7 +60,7 @@ public class BankCli {
             System.out.println("Registration successful.");
             System.out.println("Your Account ID is: " + account.getAccountId());
             System.out.println("Keep your Account ID and PIN safe — you will need both to log in.");
-        } catch (DataAccessException | BankingException e) {
+        } catch (DataAccessException | IllegalStateException | BankingException e) {
             showFailure(e);
         }
     }
@@ -72,7 +72,7 @@ public class BankCli {
             accountService.login(accountId, pin);
             System.out.println("Login successful. Welcome.");
             runSession(accountId.trim());
-        } catch (DataAccessException | BankingException e) {
+        } catch (DataAccessException | IllegalStateException | BankingException e) {
             showFailure(e);
         }
     }
@@ -101,7 +101,7 @@ public class BankCli {
                     case "6" -> inSession = false;
                     default -> System.out.println("Please choose a number from 1 to 6.");
                 }
-            } catch (DataAccessException | BankingException e) {
+            } catch (DataAccessException | IllegalStateException | BankingException e) {
                 showFailure(e);
             }
         }
@@ -168,7 +168,7 @@ public class BankCli {
     }
 
     private void showFailure(RuntimeException error) {
-        if (error instanceof DataAccessException) {
+        if (error instanceof DataAccessException || error instanceof IllegalStateException) {
             AppLogger.error("Database connection lost", error);
             System.out.println("Service temporarily unavailable. Please try again later.");
             return;

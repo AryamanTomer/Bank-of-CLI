@@ -1,7 +1,5 @@
--- Inspect the embedded Postgres instance while the app is running.
--- App: localhost:55432  (data/pg)
--- Tests: localhost:55433 (data/pg-test)
--- User: postgres   Database: postgres   Password: (empty)
+-- Run against bank_cli or bank_cli_test on localhost:5432
+SELECT current_database();
 
 SELECT account_id, balance, created_at
 FROM accounts

@@ -1,4 +1,4 @@
-package com.bank.model;
+package com.bank.domain;
 
 import com.bank.util.Money;
 
@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
-public final class Transaction {
+public class Transaction {
     private final Long id;
     private final String accountId;
     private final TransactionType type;
