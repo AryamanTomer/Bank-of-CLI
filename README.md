@@ -45,16 +45,7 @@ CREATE DATABASE bank_cli_test;
 ```
 
 3. Tables are created automatically on startup (`CREATE TABLE IF NOT EXISTS`). You can also apply `schema.sql` yourself.
-4. JDBC settings live in `src/main/resources/db.properties`:
-
-```properties
-DB_URL=jdbc:postgresql://localhost:5432/bank_cli
-TEST_DB_URL=jdbc:postgresql://localhost:5432/bank_cli_test
-DB_USER=postgres
-DB_PASSWORD=
-```
-
-Copy `db.properties.example` if you need a local override. Do not commit a real password.
+4. Copy `db.properties.example` to `src/main/resources/db.properties` and set your Postgres password. That file is gitignored so a real password is not committed.
 
 ## Run
 
@@ -84,6 +75,9 @@ src/main/java/com/bank/
   domain/        Account, Transaction
   exception/     user-facing and data-access errors
   util/          PIN hashing, logging, money
-src/main/resources/db.properties
+src/test/java/com/bank/
+  service/       AccountServiceImplTest
+  persistence/   AccountDAOImplTest, TransactionDAOImplTest
+db.properties.example
 schema.sql
 ```

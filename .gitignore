@@ -1,7 +1,6 @@
 target/
 logs/
 *.log
-data/
 db.properties
 !db.properties.example
 .env
