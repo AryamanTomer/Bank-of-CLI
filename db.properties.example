@@ -1,4 +1,9 @@
+# Copy this file to src/main/resources/db.properties and set DB_PASSWORD.
+# Do not commit the copy; it can contain a real password.
+
+# Live app database
 DB_URL=jdbc:postgresql://localhost:5432/bank_cli
+# Used only when running mvn test
 TEST_DB_URL=jdbc:postgresql://localhost:5432/bank_cli_test
 DB_USER=postgres
 DB_PASSWORD=

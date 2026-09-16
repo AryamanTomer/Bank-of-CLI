@@ -2,6 +2,7 @@ package com.bank.util;
 
 import java.security.SecureRandom;
 
+/** Builds an 8-digit Account ID that does not start with zero. */
 public final class AccountIdGenerator {
     private static final SecureRandom RANDOM = new SecureRandom();
 

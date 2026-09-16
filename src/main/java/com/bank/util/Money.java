@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.Locale;
 
+/** Helpers so balances and amounts always use a two-decimal currency scale. */
 public final class Money {
     private static final NumberFormat CURRENCY = NumberFormat.getCurrencyInstance(Locale.US);
 

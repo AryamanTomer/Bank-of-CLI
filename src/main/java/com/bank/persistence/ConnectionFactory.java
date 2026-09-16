@@ -10,6 +10,11 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
+/**
+ * Singleton that opens JDBC connections with {@code DriverManager}.
+ * Credentials come from {@code db.properties}. Tests set {@code bank.test.db=true} so they hit
+ * {@code bank_cli_test} instead of the live {@code bank_cli} database.
+ */
 public class ConnectionFactory {
     private static final ConnectionFactory connectionFactory = new ConnectionFactory();
     private final Properties props = new Properties();
@@ -38,6 +43,7 @@ public class ConnectionFactory {
         }
     }
 
+    /** Live app uses DB_URL; {@code mvn test} switches to TEST_DB_URL. */
     private String url() {
         if (Boolean.parseBoolean(System.getProperty("bank.test.db", "false"))) {
             String testUrl = props.getProperty("TEST_DB_URL");

@@ -2,6 +2,7 @@ package com.bank.util;
 
 import org.mindrot.jbcrypt.BCrypt;
 
+/** Hashes and verifies 4-digit PINs with BCrypt so the database never stores the PIN itself. */
 public final class PinHasher {
     private PinHasher() {
     }

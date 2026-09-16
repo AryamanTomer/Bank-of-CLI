@@ -15,6 +15,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Optional;
 
+/**
+ * JDBC implementation of {@link AccountDAO}. All SQL uses {@link PreparedStatement}.
+ * Deposit, withdraw, and transfer run in one connection with {@code autoCommit} off so a failure
+ * rolls both the balance change and the ledger row back together.
+ */
 public class AccountDAOImpl implements AccountDAO {
     private static final String CREATE_ACCOUNTS_SQL = """
             CREATE TABLE IF NOT EXISTS accounts (
@@ -49,6 +54,7 @@ public class AccountDAOImpl implements AccountDAO {
             FROM accounts
             WHERE account_id = ?
             """;
+    /** FOR UPDATE holds the row until commit so two transfers cannot overdraw the same account. */
     private static final String LOCK_BALANCE_SQL = "SELECT balance FROM accounts WHERE account_id = ? FOR UPDATE";
     private static final String UPDATE_BALANCE_SQL = "UPDATE accounts SET balance = ? WHERE account_id = ?";
     private static final String INSERT_TRANSACTION_SQL = """
@@ -57,6 +63,7 @@ public class AccountDAOImpl implements AccountDAO {
             """;
 
     public AccountDAOImpl() {
+        // CREATE TABLE IF NOT EXISTS so the first run against an empty database still works.
         initializeSchema();
     }
 
@@ -106,7 +113,7 @@ public class AccountDAOImpl implements AccountDAO {
     @Override
     public void deposit(String accountId, BigDecimal amount) {
         try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection()) {
-            connection.setAutoCommit(false);
+            connection.setAutoCommit(false); // commit balance + ledger together, or roll both back
             try {
                 BigDecimal current = lockBalance(connection, accountId);
                 updateBalance(connection, accountId, current.add(amount));
@@ -157,6 +164,7 @@ public class AccountDAOImpl implements AccountDAO {
         try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection()) {
             connection.setAutoCommit(false);
             try {
+                // Lock both rows in a stable ID order so two transfers cannot deadlock.
                 String first = fromAccountId.compareTo(toAccountId) < 0 ? fromAccountId : toAccountId;
                 String second = fromAccountId.compareTo(toAccountId) < 0 ? toAccountId : fromAccountId;
                 BigDecimal firstBalance = lockBalance(connection, first);
@@ -200,6 +208,7 @@ public class AccountDAOImpl implements AccountDAO {
         }
     }
 
+    /** Creates tables on first run so a fresh Postgres database can start the app without extra scripts. */
     private void initializeSchema() {
         try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection();
              PreparedStatement accounts = connection.prepareStatement(CREATE_ACCOUNTS_SQL);
@@ -213,6 +222,7 @@ public class AccountDAOImpl implements AccountDAO {
         }
     }
 
+    /** Maps one accounts row into an {@link Account} domain object. */
     private Account mapAccount(ResultSet resultSet) throws SQLException {
         return new Account(
                 resultSet.getString("account_id"),
@@ -222,6 +232,7 @@ public class AccountDAOImpl implements AccountDAO {
         );
     }
 
+    /** Locks the row and returns the current balance, or throws if the account is missing. */
     private BigDecimal lockBalance(Connection connection, String accountId) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(LOCK_BALANCE_SQL)) {
             statement.setString(1, accountId);

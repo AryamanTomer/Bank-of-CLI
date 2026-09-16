@@ -14,6 +14,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Scanner;
 
+/**
+ * Terminal menus. This layer talks only to {@link AccountService} and prints user-facing messages.
+ * Stack traces stay in the log file, never on the screen.
+ */
 public class BankCli {
     private static final DateTimeFormatter TIMESTAMP_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
@@ -26,6 +30,7 @@ public class BankCli {
         this.scanner = scanner;
     }
 
+    /** Home menu: register, log in, or exit. */
     public void start() {
         boolean running = true;
         while (running) {
@@ -51,6 +56,7 @@ public class BankCli {
         try {
             String pin = prompt("Choose a 4-digit PIN");
             String confirm = prompt("Confirm PIN");
+            // Confirm in the CLI so a mistyped PIN is never stored.
             if (!pin.equals(confirm)) {
                 System.out.println("PINs did not match. Registration cancelled.");
                 return;
@@ -77,6 +83,7 @@ public class BankCli {
         }
     }
 
+    /** Logged-in menu for one account until the user chooses log out. */
     private void runSession(String accountId) {
         boolean inSession = true;
         while (inSession) {
@@ -167,6 +174,10 @@ public class BankCli {
         }
     }
 
+    /**
+     * Prints a short message. Database failures become "Service temporarily unavailable"
+     * instead of a JDBC stack trace.
+     */
     private void showFailure(RuntimeException error) {
         if (error instanceof DataAccessException || error instanceof IllegalStateException) {
             AppLogger.error("Database connection lost", error);

@@ -6,6 +6,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 
+/**
+ * Immutable snapshot of a bank account. The PIN is stored only as a BCrypt hash, never in plain text.
+ */
 public class Account {
     private final String accountId;
     private final String pinHash;
