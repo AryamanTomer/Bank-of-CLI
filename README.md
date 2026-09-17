@@ -1,29 +1,17 @@
 # Bank of CLI
 
-Terminal banking app with a layered Java architecture and PostgreSQL over JDBC.
+A terminal banking app. You register, get an Account ID, log in with a PIN, then you can check your balance, deposit, withdraw, transfer money, and look at recent transactions.
 
-Users can register, log in with an Account ID and PIN, check a balance, deposit, withdraw, transfer, and view recent transaction history. Successful actions are written as `INFO` to `logs/bank-of-cli.log`. Failures such as a bad PIN or a lost database connection are written as `ERROR`. The CLI shows a short message, never a stack trace.
+It's Java 21 + Maven + Postgres. JDBC only (`DriverManager` and `PreparedStatement`), no Spring. Logging goes to `logs/bank-of-cli.log` (INFO for successful stuff, ERROR for things like a bad PIN or a dropped database connection). The CLI just prints a short message; it doesn't dump stack traces.
 
-## Tech stack
+The package layout is the same idea as the week 4 `cleancodeWithJDBC` example:
 
-- Java 21
-- Maven
-- PostgreSQL
-- JDBC (`DriverManager` + `PreparedStatement`)
-- JUnit 5
+- `api` — menus. This is the only thing that talks to the user, and it only calls `AccountService`.
+- `service` — the actual banking rules (PIN checks, no overdraft, no transferring to yourself).
+- `persistence` — SQL and JDBC. Maps rows into `Account` / `Transaction` objects.
+- `domain` — those objects.
 
-## Architecture
-
-The layout follows the week 4 `cleancodeWithJDBC` example: API → service interface/impl → DAO → domain.
-
-| Layer | Package | Role |
-| --- | --- | --- |
-| API | `com.bank.api` | Terminal menus and messages. Talks only to `AccountService`. |
-| Service | `com.bank.service` | Banking rules (PIN checks, overdraft, same-account transfer). |
-| Persistence | `com.bank.persistence` | JDBC, SQL, row mapping. Talks only to Postgres. |
-| Domain | `com.bank.domain` | `Account` and `Transaction` objects. |
-
-`Main` wires the layers the same way as the example:
+`Main` just wires it together:
 
 ```java
 AccountDAO accountDAO = new AccountDAOImpl();
@@ -32,24 +20,26 @@ AccountService service = new AccountServiceImpl(accountDAO, transactionDAO);
 new BankCli(service, scanner).start();
 ```
 
-Transfers run in one database transaction. If either side fails, both balances roll back.
+Transfers use one database transaction, so if the second account update fails, both sides roll back.
 
 ## Setup
 
-1. Install **JDK 21** and **PostgreSQL**.
-2. Create two databases (default user `postgres`):
+You need JDK 21 and Postgres running locally.
+
+Create the two databases (I used the default `postgres` user):
 
 ```sql
 CREATE DATABASE bank_cli;
 CREATE DATABASE bank_cli_test;
 ```
 
-3. Tables are created automatically on startup (`CREATE TABLE IF NOT EXISTS`). You can also apply `schema.sql` yourself.
-4. Copy `db.properties.example` to `src/main/resources/db.properties` and set your Postgres password. That file is gitignored so a real password is not committed.
+Copy `db.properties.example` to `src/main/resources/db.properties` and put your password in. That file is gitignored on purpose.
+
+Tables get created on startup (`CREATE TABLE IF NOT EXISTS`). You can also run `schema.sql` yourself if you want.
 
 ## Run
 
-From the project directory:
+From the project folder:
 
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Java\jdk-21"
@@ -57,15 +47,15 @@ $env:Path = "$env:JAVA_HOME\bin;" + $env:Path
 mvn -q exec:java
 ```
 
-## Test
+## Tests
 
-Service methods are tested with Mockito. DAO methods hit `bank_cli_test`. Every public service and DAO method has a positive test and a negative test.
+Service tests use Mockito. DAO tests hit `bank_cli_test` so they don't mess with the live database. Each public service/DAO method has a happy-path test and a failure test.
 
 ```powershell
 mvn test
 ```
 
-## Project layout
+## Layout
 
 ```
 src/main/java/com/bank/
@@ -73,7 +63,7 @@ src/main/java/com/bank/
   service/       AccountService, AccountServiceImpl
   persistence/   ConnectionFactory, AccountDAO, TransactionDAO
   domain/        Account, Transaction
-  exception/     user-facing and data-access errors
+  exception/
   util/          PIN hashing, logging, money
 src/test/java/com/bank/
   service/       AccountServiceImplTest
