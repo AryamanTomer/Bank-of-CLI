@@ -1,4 +1,4 @@
-package com.bank.persistence;
+package com.bank.repository;
 
 import com.bank.domain.Account;
 
@@ -6,9 +6,9 @@ import java.math.BigDecimal;
 import java.util.Optional;
 
 /**
- * Persistence API for accounts. Implementations own SQL and JDBC; the service never writes SQL.
+ * Repository API for accounts. Implementations own SQL and JDBC; the service never writes SQL.
  */
-public interface AccountDAO {
+public interface AccountRepository {
     void create(Account account);
 
     boolean existsById(String accountId);

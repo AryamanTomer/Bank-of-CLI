@@ -1,4 +1,4 @@
-package com.bank.persistence;
+package com.bank.repository;
 
 import java.io.FileReader;
 import java.io.IOException;

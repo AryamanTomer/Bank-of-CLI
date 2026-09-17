@@ -9,8 +9,8 @@ import com.bank.exception.InsufficientFundsException;
 import com.bank.exception.InvalidAmountException;
 import com.bank.exception.ServiceUnavailableException;
 import com.bank.exception.ValidationException;
-import com.bank.persistence.AccountDAO;
-import com.bank.persistence.TransactionDAO;
+import com.bank.repository.AccountRepository;
+import com.bank.repository.TransactionRepository;
 import com.bank.util.AccountIdGenerator;
 import com.bank.util.AppLogger;
 import com.bank.util.PinHasher;
@@ -23,24 +23,24 @@ import java.util.function.Supplier;
 
 /**
  * Banking rules: PIN checks, no overdraft, no same-account transfers, and unique Account IDs.
- * SQL stays in the DAOs. A lost database connection is logged and turned into a user-safe error.
+ * SQL stays in the repositories. A lost database connection is logged and turned into a user-safe error.
  */
 public class AccountServiceImpl implements AccountService {
     private static final int MAX_ID_ATTEMPTS = 20;
     static final int HISTORY_LIMIT = 20;
 
-    private final AccountDAO accountDAO;
-    private final TransactionDAO transactionDAO;
+    private final AccountRepository accountRepository;
+    private final TransactionRepository transactionRepository;
     private final Supplier<String> accountIdGenerator;
 
-    public AccountServiceImpl(AccountDAO accountDAO, TransactionDAO transactionDAO) {
-        this(accountDAO, transactionDAO, AccountIdGenerator::nextId);
+    public AccountServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository) {
+        this(accountRepository, transactionRepository, AccountIdGenerator::nextId);
     }
 
     /** Package-private constructor so tests can supply a fixed Account ID. */
-    AccountServiceImpl(AccountDAO accountDAO, TransactionDAO transactionDAO, Supplier<String> accountIdGenerator) {
-        this.accountDAO = accountDAO;
-        this.transactionDAO = transactionDAO;
+    AccountServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, Supplier<String> accountIdGenerator) {
+        this.accountRepository = accountRepository;
+        this.transactionRepository = transactionRepository;
         this.accountIdGenerator = accountIdGenerator;
     }
 
@@ -57,7 +57,7 @@ public class AccountServiceImpl implements AccountService {
                     new BigDecimal("0.00"),
                     Instant.now()
             );
-            accountDAO.create(account);
+            accountRepository.create(account);
             AppLogger.info("User successfully registered account " + accountId);
             return account;
         });
@@ -72,7 +72,7 @@ public class AccountServiceImpl implements AccountService {
             throw new ValidationException("PIN must be exactly 4 digits.");
         }
         return callWithDatabase(() -> {
-            Account account = accountDAO.findById(accountId.trim()).orElse(null);
+            Account account = accountRepository.findById(accountId.trim()).orElse(null);
             // Same error whether the ID is missing or the PIN is wrong.
             if (account == null || !PinHasher.verify(pin, account.getPinHash())) {
                 AppLogger.error("Incorrect PIN entered for account " + accountId);
@@ -86,7 +86,7 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public BigDecimal getBalance(String accountId) {
         return callWithDatabase(() -> {
-            Account account = accountDAO.findById(accountId)
+            Account account = accountRepository.findById(accountId)
                     .orElseThrow(() -> new AccountNotFoundException(accountId));
             AppLogger.info("User " + accountId + " checked account balance");
             return account.getBalance();
@@ -97,7 +97,7 @@ public class AccountServiceImpl implements AccountService {
     public void deposit(String accountId, BigDecimal amount) {
         BigDecimal validAmount = requirePositiveAmount(amount);
         runWithDatabase(() -> {
-            accountDAO.deposit(accountId, validAmount);
+            accountRepository.deposit(accountId, validAmount);
             AppLogger.info("User " + accountId + " successfully deposited " + validAmount);
         });
     }
@@ -106,14 +106,14 @@ public class AccountServiceImpl implements AccountService {
     public void withdraw(String accountId, BigDecimal amount) {
         BigDecimal validAmount = requirePositiveAmount(amount);
         runWithDatabase(() -> {
-            Account account = accountDAO.findById(accountId)
+            Account account = accountRepository.findById(accountId)
                     .orElseThrow(() -> new AccountNotFoundException(accountId));
             // Overdraft is rejected here, before any SQL update runs.
             if (account.getBalance().compareTo(validAmount) < 0) {
                 AppLogger.error("Withdrawal rejected for " + accountId + ": insufficient funds");
                 throw new InsufficientFundsException();
             }
-            accountDAO.withdraw(accountId, validAmount);
+            accountRepository.withdraw(accountId, validAmount);
             AppLogger.info("User " + accountId + " successfully withdrew " + validAmount);
         });
     }
@@ -130,15 +130,15 @@ public class AccountServiceImpl implements AccountService {
             throw new ValidationException("You cannot transfer money to the same account.");
         }
         runWithDatabase(() -> {
-            Account source = accountDAO.findById(fromAccountId)
+            Account source = accountRepository.findById(fromAccountId)
                     .orElseThrow(() -> new AccountNotFoundException(fromAccountId));
-            accountDAO.findById(destination)
+            accountRepository.findById(destination)
                     .orElseThrow(() -> new AccountNotFoundException(destination));
             if (source.getBalance().compareTo(validAmount) < 0) {
                 AppLogger.error("Transfer rejected for " + fromAccountId + ": insufficient funds");
                 throw new InsufficientFundsException();
             }
-            accountDAO.transfer(fromAccountId, destination, validAmount);
+            accountRepository.transfer(fromAccountId, destination, validAmount);
             AppLogger.info("User " + fromAccountId + " successfully transferred " + validAmount + " to " + destination);
         });
     }
@@ -147,9 +147,9 @@ public class AccountServiceImpl implements AccountService {
     public List<Transaction> getHistory(String accountId) {
         return callWithDatabase(() -> {
             // Missing account is an error; an existing account with no rows is an empty list.
-            accountDAO.findById(accountId)
+            accountRepository.findById(accountId)
                     .orElseThrow(() -> new AccountNotFoundException(accountId));
-            List<Transaction> history = transactionDAO.findRecentByAccountId(accountId, HISTORY_LIMIT);
+            List<Transaction> history = transactionRepository.findRecentByAccountId(accountId, HISTORY_LIMIT);
             AppLogger.info("User " + accountId + " viewed transaction history");
             return history;
         });
@@ -174,14 +174,14 @@ public class AccountServiceImpl implements AccountService {
     private String allocateAccountId() {
         for (int attempt = 0; attempt < MAX_ID_ATTEMPTS; attempt++) {
             String candidate = accountIdGenerator.get();
-            if (!accountDAO.existsById(candidate)) {
+            if (!accountRepository.existsById(candidate)) {
                 return candidate;
             }
         }
         throw new ServiceUnavailableException(new IllegalStateException("Unable to allocate a unique Account ID"));
     }
 
-    /** Runs a void DAO call and maps JDBC failures to {@link ServiceUnavailableException}. */
+    /** Runs a void repository call and maps JDBC failures to {@link ServiceUnavailableException}. */
     private void runWithDatabase(Runnable action) {
         try {
             action.run();

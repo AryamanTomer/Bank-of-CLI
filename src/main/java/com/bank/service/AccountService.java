@@ -8,6 +8,7 @@ import java.util.List;
 
 /**
  * Banking use cases exposed to the API layer. All PIN, overdraft, and amount rules live here.
+ * This layer calls the repository layer; it never talks to JDBC itself.
  */
 public interface AccountService {
     /** Creates an account with a unique 8-digit ID and a hashed PIN. */

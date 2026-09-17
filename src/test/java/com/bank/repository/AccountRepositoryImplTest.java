@@ -1,4 +1,4 @@
-package com.bank.persistence;
+package com.bank.repository;
 
 import com.bank.domain.Account;
 import com.bank.exception.AccountNotFoundException;
@@ -22,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * JDBC tests against {@code bank_cli_test}. Surefire sets {@code bank.test.db=true}
  * so these methods never touch the live {@code bank_cli} database.
  */
-class AccountDAOImplTest {
-    private final AccountDAO dao = new AccountDAOImpl();
+class AccountRepositoryImplTest {
+    private final AccountRepository accounts = new AccountRepositoryImpl();
 
     @BeforeEach
     void cleanTestDatabase() throws Exception {
@@ -37,52 +37,52 @@ class AccountDAOImplTest {
 
     @Test
     void create_insertsAccount() {
-        dao.create(account("10000001"));
+        accounts.create(account("10000001"));
 
-        assertTrue(dao.existsById("10000001"));
-        assertEquals("10000001", dao.findById("10000001").orElseThrow().getAccountId());
-        assertEquals(new BigDecimal("0.00"), dao.findById("10000001").orElseThrow().getBalance());
+        assertTrue(accounts.existsById("10000001"));
+        assertEquals("10000001", accounts.findById("10000001").orElseThrow().getAccountId());
+        assertEquals(new BigDecimal("0.00"), accounts.findById("10000001").orElseThrow().getBalance());
     }
 
     @Test
     void create_rejectsDuplicateAccountId() {
-        dao.create(account("10000001"));
+        accounts.create(account("10000001"));
 
-        assertThrows(DataAccessException.class, () -> dao.create(account("10000001")));
+        assertThrows(DataAccessException.class, () -> accounts.create(account("10000001")));
     }
 
     @Test
     void existsById_returnsTrueWhenAccountExists() {
-        dao.create(account("10000001"));
+        accounts.create(account("10000001"));
 
-        assertTrue(dao.existsById("10000001"));
+        assertTrue(accounts.existsById("10000001"));
     }
 
     @Test
     void existsById_returnsFalseWhenAccountIsMissing() {
-        assertFalse(dao.existsById("99999999"));
+        assertFalse(accounts.existsById("99999999"));
     }
 
     @Test
     void findById_returnsAccountWhenItExists() {
-        dao.create(account("10000001"));
+        accounts.create(account("10000001"));
 
-        Account found = dao.findById("10000001").orElseThrow();
+        Account found = accounts.findById("10000001").orElseThrow();
         assertEquals("10000001", found.getAccountId());
     }
 
     @Test
     void findById_returnsEmptyWhenMissing() {
-        assertTrue(dao.findById("99999999").isEmpty());
+        assertTrue(accounts.findById("99999999").isEmpty());
     }
 
     @Test
     void deposit_addsFundsAndRecordsTransaction() throws Exception {
-        dao.create(account("10000001"));
+        accounts.create(account("10000001"));
 
-        dao.deposit("10000001", new BigDecimal("25.00"));
+        accounts.deposit("10000001", new BigDecimal("25.00"));
 
-        assertEquals(new BigDecimal("25.00"), dao.findById("10000001").orElseThrow().getBalance());
+        assertEquals(new BigDecimal("25.00"), accounts.findById("10000001").orElseThrow().getBalance());
         try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection();
              Statement statement = connection.createStatement();
              var resultSet = statement.executeQuery(
@@ -97,16 +97,16 @@ class AccountDAOImplTest {
     @Test
     void deposit_rejectsUnknownAccount() {
         assertThrows(AccountNotFoundException.class,
-                () -> dao.deposit("10000001", new BigDecimal("25.00")));
+                () -> accounts.deposit("10000001", new BigDecimal("25.00")));
     }
 
     @Test
     void withdraw_subtractsFundsAndRecordsTransaction() throws Exception {
-        dao.create(account("10000001", "40.00"));
+        accounts.create(account("10000001", "40.00"));
 
-        dao.withdraw("10000001", new BigDecimal("15.00"));
+        accounts.withdraw("10000001", new BigDecimal("15.00"));
 
-        assertEquals(new BigDecimal("25.00"), dao.findById("10000001").orElseThrow().getBalance());
+        assertEquals(new BigDecimal("25.00"), accounts.findById("10000001").orElseThrow().getBalance());
         try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection();
              Statement statement = connection.createStatement();
              var resultSet = statement.executeQuery(
@@ -120,33 +120,33 @@ class AccountDAOImplTest {
 
     @Test
     void withdraw_rejectsOverdraftAndLeavesBalanceUnchanged() {
-        dao.create(account("10000001", "10.00"));
+        accounts.create(account("10000001", "10.00"));
 
         assertThrows(InsufficientFundsException.class,
-                () -> dao.withdraw("10000001", new BigDecimal("10.01")));
-        assertEquals(new BigDecimal("10.00"), dao.findById("10000001").orElseThrow().getBalance());
+                () -> accounts.withdraw("10000001", new BigDecimal("10.01")));
+        assertEquals(new BigDecimal("10.00"), accounts.findById("10000001").orElseThrow().getBalance());
     }
 
     @Test
     void transfer_movesFundsAtomically() {
-        dao.create(account("10000001", "100.00"));
-        dao.create(account("10000002", "20.00"));
+        accounts.create(account("10000001", "100.00"));
+        accounts.create(account("10000002", "20.00"));
 
-        dao.transfer("10000001", "10000002", new BigDecimal("30.00"));
+        accounts.transfer("10000001", "10000002", new BigDecimal("30.00"));
 
-        assertEquals(new BigDecimal("70.00"), dao.findById("10000001").orElseThrow().getBalance());
-        assertEquals(new BigDecimal("50.00"), dao.findById("10000002").orElseThrow().getBalance());
+        assertEquals(new BigDecimal("70.00"), accounts.findById("10000001").orElseThrow().getBalance());
+        assertEquals(new BigDecimal("50.00"), accounts.findById("10000002").orElseThrow().getBalance());
     }
 
     @Test
     void transfer_rollsBackWhenSourceCannotCoverAmount() {
-        dao.create(account("10000001", "10.00"));
-        dao.create(account("10000002", "50.00"));
+        accounts.create(account("10000001", "10.00"));
+        accounts.create(account("10000002", "50.00"));
 
         assertThrows(InsufficientFundsException.class,
-                () -> dao.transfer("10000001", "10000002", new BigDecimal("25.00")));
-        assertEquals(new BigDecimal("10.00"), dao.findById("10000001").orElseThrow().getBalance());
-        assertEquals(new BigDecimal("50.00"), dao.findById("10000002").orElseThrow().getBalance());
+                () -> accounts.transfer("10000001", "10000002", new BigDecimal("25.00")));
+        assertEquals(new BigDecimal("10.00"), accounts.findById("10000001").orElseThrow().getBalance());
+        assertEquals(new BigDecimal("50.00"), accounts.findById("10000002").orElseThrow().getBalance());
     }
 
     private Account account(String id) {

@@ -1,4 +1,4 @@
-package com.bank.persistence;
+package com.bank.repository;
 
 import com.bank.domain.Account;
 import com.bank.domain.TransactionType;
@@ -16,11 +16,11 @@ import java.sql.Timestamp;
 import java.util.Optional;
 
 /**
- * JDBC implementation of {@link AccountDAO}. All SQL uses {@link PreparedStatement}.
+ * JDBC implementation of {@link AccountRepository}. All SQL uses {@link PreparedStatement}.
  * Deposit, withdraw, and transfer run in one connection with {@code autoCommit} off so a failure
  * rolls both the balance change and the ledger row back together.
  */
-public class AccountDAOImpl implements AccountDAO {
+public class AccountRepositoryImpl implements AccountRepository {
     private static final String CREATE_ACCOUNTS_SQL = """
             CREATE TABLE IF NOT EXISTS accounts (
                 account_id VARCHAR(16) PRIMARY KEY,
@@ -62,7 +62,7 @@ public class AccountDAOImpl implements AccountDAO {
             VALUES (?, ?, ?, ?, ?)
             """;
 
-    public AccountDAOImpl() {
+    public AccountRepositoryImpl() {
         // CREATE TABLE IF NOT EXISTS so the first run against an empty database still works.
         initializeSchema();
     }

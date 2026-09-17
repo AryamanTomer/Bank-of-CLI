@@ -1,4 +1,4 @@
-package com.bank.persistence;
+package com.bank.repository;
 
 import com.bank.domain.Account;
 import com.bank.domain.Transaction;
@@ -16,9 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** JDBC tests for recent transaction history against {@code bank_cli_test}. */
-class TransactionDAOImplTest {
-    private final AccountDAO accountDAO = new AccountDAOImpl();
-    private final TransactionDAO transactionDAO = new TransactionDAOImpl();
+class TransactionRepositoryImplTest {
+    private final AccountRepository accountRepository = new AccountRepositoryImpl();
+    private final TransactionRepository transactionRepository = new TransactionRepositoryImpl();
 
     @BeforeEach
     void cleanTestDatabase() throws Exception {
@@ -32,10 +32,10 @@ class TransactionDAOImplTest {
 
     @Test
     void findRecentByAccountId_returnsNewestTransactions() {
-        accountDAO.create(new Account("10000001", "hash", new BigDecimal("0.00"), Instant.now()));
-        accountDAO.deposit("10000001", new BigDecimal("25.00"));
+        accountRepository.create(new Account("10000001", "hash", new BigDecimal("0.00"), Instant.now()));
+        accountRepository.deposit("10000001", new BigDecimal("25.00"));
 
-        List<Transaction> history = transactionDAO.findRecentByAccountId("10000001", 20);
+        List<Transaction> history = transactionRepository.findRecentByAccountId("10000001", 20);
 
         assertEquals(1, history.size());
         assertEquals(TransactionType.DEPOSIT, history.get(0).getType());
@@ -44,9 +44,9 @@ class TransactionDAOImplTest {
 
     @Test
     void findRecentByAccountId_returnsEmptyWhenNoneExist() {
-        accountDAO.create(new Account("10000001", "hash", new BigDecimal("0.00"), Instant.now()));
+        accountRepository.create(new Account("10000001", "hash", new BigDecimal("0.00"), Instant.now()));
 
-        List<Transaction> history = transactionDAO.findRecentByAccountId("10000001", 20);
+        List<Transaction> history = transactionRepository.findRecentByAccountId("10000001", 20);
 
         assertTrue(history.isEmpty());
     }

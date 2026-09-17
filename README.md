@@ -2,21 +2,21 @@
 
 A terminal banking app. You register, get an Account ID, log in with a PIN, then you can check your balance, deposit, withdraw, transfer money, and look at recent transactions.
 
-It's Java 21 + Maven + Postgres. JDBC only (`DriverManager` and `PreparedStatement`), no Spring. Logging goes to `logs/bank-of-cli.log` (INFO for successful stuff, ERROR for things like a bad PIN or a dropped database connection). The CLI just prints a short message; it doesn't dump stack traces.
+It's Java 21 + Maven + Postgres. JDBC (`DriverManager` and `PreparedStatement`) talks to the database. Logging goes to `logs/bank-of-cli.log` — INFO when something succeeds, ERROR when something fails (bad PIN, lost database connection, that kind of thing). The CLI prints a short message instead of a stack trace.
 
-The package layout is the same idea as the week 4 `cleancodeWithJDBC` example:
+Layers:
 
-- `api` — menus. This is the only thing that talks to the user, and it only calls `AccountService`.
-- `service` — the actual banking rules (PIN checks, no overdraft, no transferring to yourself).
-- `persistence` — SQL and JDBC. Maps rows into `Account` / `Transaction` objects.
+- `api` — the menus. This is what you see in the terminal. It only calls `AccountService`.
+- `service` — the banking rules. Can they withdraw this much? Is the PIN right? Don't transfer to yourself.
+- `repository` — Postgres. SQL lives here, and it turns rows into `Account` / `Transaction` objects. Only the service calls this.
 - `domain` — those objects.
 
 `Main` just wires it together:
 
 ```java
-AccountDAO accountDAO = new AccountDAOImpl();
-TransactionDAO transactionDAO = new TransactionDAOImpl();
-AccountService service = new AccountServiceImpl(accountDAO, transactionDAO);
+AccountRepository accountRepository = new AccountRepositoryImpl();
+TransactionRepository transactionRepository = new TransactionRepositoryImpl();
+AccountService service = new AccountServiceImpl(accountRepository, transactionRepository);
 new BankCli(service, scanner).start();
 ```
 
@@ -49,7 +49,7 @@ mvn -q exec:java
 
 ## Tests
 
-Service tests use Mockito. DAO tests hit `bank_cli_test` so they don't mess with the live database. Each public service/DAO method has a happy-path test and a failure test.
+Service tests use Mockito. Repository tests hit `bank_cli_test` so they don't mess with the live database. Each public service/repository method has a happy-path test and a failure test.
 
 ```powershell
 mvn test
@@ -61,13 +61,13 @@ mvn test
 src/main/java/com/bank/
   api/           Main, BankCli
   service/       AccountService, AccountServiceImpl
-  persistence/   ConnectionFactory, AccountDAO, TransactionDAO
+  repository/    ConnectionFactory, AccountRepository, TransactionRepository
   domain/        Account, Transaction
   exception/
   util/          PIN hashing, logging, money
 src/test/java/com/bank/
   service/       AccountServiceImplTest
-  persistence/   AccountDAOImplTest, TransactionDAOImplTest
+  repository/    AccountRepositoryImplTest, TransactionRepositoryImplTest
 db.properties.example
 schema.sql
 ```

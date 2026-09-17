@@ -1,4 +1,4 @@
-package com.bank.persistence;
+package com.bank.repository;
 
 import com.bank.domain.Transaction;
 import com.bank.domain.TransactionType;
@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 /** JDBC reader for recent ledger rows, newest first, using {@link PreparedStatement}. */
-public class TransactionDAOImpl implements TransactionDAO {
+public class TransactionRepositoryImpl implements TransactionRepository {
     private static final String FIND_RECENT_SQL = """
             SELECT id, account_id, type, amount, related_account_id, description, created_at
             FROM transactions
