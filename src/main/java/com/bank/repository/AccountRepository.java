@@ -5,9 +5,7 @@ import com.bank.domain.Account;
 import java.math.BigDecimal;
 import java.util.Optional;
 
-/**
- * Repository API for accounts. Implementations own SQL and JDBC; the service never writes SQL.
- */
+// SQL for accounts. The service should never write a query.
 public interface AccountRepository {
     void create(Account account);
 
@@ -19,6 +17,6 @@ public interface AccountRepository {
 
     void withdraw(String accountId, BigDecimal amount);
 
-    /** Moves funds between two accounts in one database transaction. */
+    // Both sides of a transfer happen together, or neither does.
     void transfer(String fromAccountId, String toAccountId, BigDecimal amount);
 }

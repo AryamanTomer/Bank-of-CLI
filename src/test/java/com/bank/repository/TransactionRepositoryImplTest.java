@@ -15,14 +15,14 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** JDBC tests for recent transaction history against {@code bank_cli_test}. */
+// History queries against bank_cli_test.
 class TransactionRepositoryImplTest {
     private final AccountRepository accountRepository = new AccountRepositoryImpl();
     private final TransactionRepository transactionRepository = new TransactionRepositoryImpl();
 
     @BeforeEach
     void cleanTestDatabase() throws Exception {
-        // Isolate each test from leftover ledger rows.
+        // Don't let leftover rows from the last test mess this up.
         try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection();
              Statement statement = connection.createStatement()) {
             statement.execute("DELETE FROM transactions");

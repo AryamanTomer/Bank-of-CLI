@@ -1,6 +1,6 @@
 package com.bank.exception;
 
-/** Withdrawal or transfer that would take the balance below zero. */
+// Would go below $0.00.
 public class InsufficientFundsException extends BankingException {
     public InsufficientFundsException() {
         super("Insufficient funds. This account cannot be overdrawn.");

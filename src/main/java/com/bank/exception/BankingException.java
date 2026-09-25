@@ -1,8 +1,6 @@
 package com.bank.exception;
 
-/**
- * Base type for errors the CLI can show to the user. {@link #getUserMessage()} is the text printed on screen.
- */
+// Errors we can actually show the user. getUserMessage() is the line that prints.
 public class BankingException extends RuntimeException {
     private final String userMessage;
 

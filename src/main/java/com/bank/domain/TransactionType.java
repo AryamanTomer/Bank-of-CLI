@@ -1,6 +1,6 @@
 package com.bank.domain;
 
-/** Ledger categories stored on each transactions row. */
+// Values we store in the type column.
 public enum TransactionType {
     DEPOSIT,
     WITHDRAWAL,

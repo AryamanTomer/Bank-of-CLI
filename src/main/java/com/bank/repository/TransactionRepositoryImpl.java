@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** JDBC reader for recent ledger rows, newest first, using {@link PreparedStatement}. */
+// Newest transactions first.
 public class TransactionRepositoryImpl implements TransactionRepository {
     private static final String FIND_RECENT_SQL = """
             SELECT id, account_id, type, amount, related_account_id, description, created_at
@@ -41,7 +41,7 @@ public class TransactionRepositoryImpl implements TransactionRepository {
         }
     }
 
-    /** Maps one transactions row into a {@link Transaction} domain object. */
+    // ResultSet -> Transaction.
     private Transaction mapTransaction(ResultSet resultSet) throws SQLException {
         Instant createdAt = Optional.ofNullable(resultSet.getTimestamp("created_at"))
                 .map(timestamp -> timestamp.toInstant())

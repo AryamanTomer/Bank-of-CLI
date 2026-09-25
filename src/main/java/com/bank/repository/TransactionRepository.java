@@ -4,9 +4,7 @@ import com.bank.domain.Transaction;
 
 import java.util.List;
 
-/**
- * Read-only repository for ledger rows. Writes happen inside {@link AccountRepository} money movements.
- */
+// Just reading history. Deposits/withdrawals/transfers write the rows in AccountRepositoryImpl.
 public interface TransactionRepository {
     List<Transaction> findRecentByAccountId(String accountId, int limit);
 }

@@ -31,10 +31,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Unit tests for {@link AccountServiceImpl}. Repositories are mocked so these tests cover banking rules,
- * not Postgres. Each public method has a success case and a failure case.
- */
+// Service tests. Repos are fakes — we're checking the rules, not Postgres.
+// Each public method has a "it worked" test and a "it failed the way we wanted" test.
 @ExtendWith(MockitoExtension.class)
 class AccountServiceImplTest {
     private static final String ACCOUNT_ID = "10000001";
@@ -48,7 +46,7 @@ class AccountServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        // Fixed ID keeps registration tests deterministic.
+        // Same ID every time so register tests aren't flaky.
         accountService = new AccountServiceImpl(accountRepository, transactionRepository, () -> ACCOUNT_ID);
     }
 

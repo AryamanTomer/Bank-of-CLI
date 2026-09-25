@@ -10,6 +10,7 @@
   "terminal.integrated.env.windows": {
     "JAVA_HOME": "C:\\Program Files\\Java\\jdk-21"
   },
+  "sqltools.useNodeRuntime": true,
   "sqltools.connections": [
     {
       "name": "bank_cli",
@@ -32,5 +33,7 @@
       "askForPassword": true
     }
   ],
-  "sqltools.useNodeRuntime": true
+  "sqlfluff.dialect": "postgres",
+  "mssql.intelliSense.enableIntelliSense": false,
+  "mssql.intelliSense.enableErrorChecking": false
 }

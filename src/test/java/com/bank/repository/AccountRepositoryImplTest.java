@@ -18,16 +18,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * JDBC tests against {@code bank_cli_test}. Surefire sets {@code bank.test.db=true}
- * so these methods never touch the live {@code bank_cli} database.
- */
+// Hits bank_cli_test, not the real bank_cli. Surefire sets bank.test.db=true.
 class AccountRepositoryImplTest {
     private final AccountRepository accounts = new AccountRepositoryImpl();
 
     @BeforeEach
     void cleanTestDatabase() throws Exception {
-        // Wipe rows between tests so assertions do not depend on leftover data.
+        // Start each test with empty tables.
         try (Connection connection = ConnectionFactory.getConnectionFactory().getConnection();
              Statement statement = connection.createStatement()) {
             statement.execute("DELETE FROM transactions");

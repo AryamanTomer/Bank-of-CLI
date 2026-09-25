@@ -7,9 +7,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * One ledger entry. Transfers produce two rows: TRANSFER_OUT on the source and TRANSFER_IN on the destination.
- */
+// One line in the history. A transfer writes two of these: out on one account, in on the other.
 public class Transaction {
     private final Long id;
     private final String accountId;
@@ -53,7 +51,7 @@ public class Transaction {
         return amount;
     }
 
-    /** The other account on a transfer, empty for deposits and withdrawals. */
+    // Set on transfers. Empty for a regular deposit or withdrawal.
     public Optional<String> getRelatedAccountId() {
         return Optional.ofNullable(relatedAccountId);
     }

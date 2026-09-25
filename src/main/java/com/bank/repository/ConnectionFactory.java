@@ -10,11 +10,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
-/**
- * Singleton that opens JDBC connections with {@code DriverManager}.
- * Credentials come from {@code db.properties}. Tests set {@code bank.test.db=true} so they hit
- * {@code bank_cli_test} instead of the live {@code bank_cli} database.
- */
+// One place that opens Postgres connections. Tests flip bank.test.db so they don't touch the live data.
 public class ConnectionFactory {
     private static final ConnectionFactory connectionFactory = new ConnectionFactory();
     private final Properties props = new Properties();
@@ -43,7 +39,7 @@ public class ConnectionFactory {
         }
     }
 
-    /** Live app uses DB_URL; {@code mvn test} switches to TEST_DB_URL. */
+    // mvn test uses TEST_DB_URL. Running the app uses DB_URL.
     private String url() {
         if (Boolean.parseBoolean(System.getProperty("bank.test.db", "false"))) {
             String testUrl = props.getProperty("TEST_DB_URL");
@@ -59,7 +55,7 @@ public class ConnectionFactory {
             props.load(reader);
             return;
         } catch (IOException ignored) {
-            // Fall back to the classpath copy packaged by Maven.
+            // File wasn't there; try the copy Maven put on the classpath.
         }
         try (InputStream in = ConnectionFactory.class.getResourceAsStream("/db.properties")) {
             if (in == null) {

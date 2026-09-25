@@ -21,10 +21,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.function.Supplier;
 
-/**
- * Banking rules: PIN checks, no overdraft, no same-account transfers, and unique Account IDs.
- * SQL stays in the repositories. A lost database connection is logged and turned into a user-safe error.
- */
+// PIN checks, no overdraft, no sending money to yourself. SQL stays in the repos.
 public class AccountServiceImpl implements AccountService {
     private static final int MAX_ID_ATTEMPTS = 20;
     static final int HISTORY_LIMIT = 20;
@@ -37,7 +34,7 @@ public class AccountServiceImpl implements AccountService {
         this(accountRepository, transactionRepository, AccountIdGenerator::nextId);
     }
 
-    /** Package-private constructor so tests can supply a fixed Account ID. */
+    // Tests pass in a fake ID generator so register() isn't random.
     AccountServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, Supplier<String> accountIdGenerator) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
@@ -73,7 +70,7 @@ public class AccountServiceImpl implements AccountService {
         }
         return callWithDatabase(() -> {
             Account account = accountRepository.findById(accountId.trim()).orElse(null);
-            // Same error whether the ID is missing or the PIN is wrong.
+            // Don't tell them whether the ID or the PIN was the problem.
             if (account == null || !PinHasher.verify(pin, account.getPinHash())) {
                 AppLogger.error("Incorrect PIN entered for account " + accountId);
                 throw new AuthenticationException();
@@ -108,7 +105,7 @@ public class AccountServiceImpl implements AccountService {
         runWithDatabase(() -> {
             Account account = accountRepository.findById(accountId)
                     .orElseThrow(() -> new AccountNotFoundException(accountId));
-            // Overdraft is rejected here, before any SQL update runs.
+            // Stop here so we never even call withdraw.
             if (account.getBalance().compareTo(validAmount) < 0) {
                 AppLogger.error("Withdrawal rejected for " + accountId + ": insufficient funds");
                 throw new InsufficientFundsException();
@@ -125,7 +122,7 @@ public class AccountServiceImpl implements AccountService {
             throw new ValidationException("Please enter the destination Account ID.");
         }
         String destination = toAccountId.trim();
-        // Transfers must involve two distinct accounts.
+        // Sending money to yourself doesn't make sense.
         if (fromAccountId.equals(destination)) {
             throw new ValidationException("You cannot transfer money to the same account.");
         }
@@ -146,7 +143,7 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public List<Transaction> getHistory(String accountId) {
         return callWithDatabase(() -> {
-            // Missing account is an error; an existing account with no rows is an empty list.
+            // Unknown ID = error. Account with no transactions yet = empty list.
             accountRepository.findById(accountId)
                     .orElseThrow(() -> new AccountNotFoundException(accountId));
             List<Transaction> history = transactionRepository.findRecentByAccountId(accountId, HISTORY_LIMIT);
@@ -155,7 +152,7 @@ public class AccountServiceImpl implements AccountService {
         });
     }
 
-    /** Amounts must be positive with at most two decimal places (25.00 is fine, 25.001 is not). */
+    // $25.00 is fine. $25.001 or a negative number is not.
     private BigDecimal requirePositiveAmount(BigDecimal amount) {
         if (amount == null) {
             throw new InvalidAmountException("Please enter a valid amount.");
@@ -170,7 +167,7 @@ public class AccountServiceImpl implements AccountService {
         return normalized;
     }
 
-    /** Retries ID generation until the value is unused, then gives up rather than looping forever. */
+    // Keep trying until we get an ID that isn't taken. Give up after a while.
     private String allocateAccountId() {
         for (int attempt = 0; attempt < MAX_ID_ATTEMPTS; attempt++) {
             String candidate = accountIdGenerator.get();
@@ -181,7 +178,7 @@ public class AccountServiceImpl implements AccountService {
         throw new ServiceUnavailableException(new IllegalStateException("Unable to allocate a unique Account ID"));
     }
 
-    /** Runs a void repository call and maps JDBC failures to {@link ServiceUnavailableException}. */
+    // If Postgres dies, log it and show "service unavailable" instead of a stack trace.
     private void runWithDatabase(Runnable action) {
         try {
             action.run();
@@ -191,7 +188,7 @@ public class AccountServiceImpl implements AccountService {
         }
     }
 
-    /** Same as {@link #runWithDatabase(Runnable)} for methods that return a value. */
+    // Same as runWithDatabase, but for methods that return something.
     private <T> T callWithDatabase(Supplier<T> action) {
         try {
             return action.get();

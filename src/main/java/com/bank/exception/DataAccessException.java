@@ -1,8 +1,6 @@
 package com.bank.exception;
 
-/**
- * JDBC failure. This is not a {@link BankingException} so the CLI never prints a raw SQL message.
- */
+// JDBC blew up. Don't show this text in the CLI — log it and say service unavailable.
 public class DataAccessException extends RuntimeException {
     public DataAccessException(String message, Throwable cause) {
         super(message, cause);

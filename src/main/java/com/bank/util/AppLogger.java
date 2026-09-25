@@ -9,10 +9,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-/**
- * Appends INFO and ERROR lines to {@code logs/bank-of-cli.log}. Failures to write the file are ignored
- * so logging can never take down a banking action.
- */
+// Writes INFO/ERROR to logs/bank-of-cli.log. If the file can't be written, ignore it — don't crash the app.
 public final class AppLogger {
     private static final Path LOG_FILE = Path.of("logs", "bank-of-cli.log");
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -47,7 +44,7 @@ public final class AppLogger {
             line.append(System.lineSeparator());
             Files.writeString(LOG_FILE, line.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException ignored) {
-            // Logging must never crash registration or a money movement.
+            // Don't let a log failure break a deposit.
         }
     }
 
